@@ -96,40 +96,14 @@ vim.pack.add({
     { src = "https://github.com/oskarnurm/koda.nvim" },
     { src = "https://github.com/savq/melange-nvim" },
 })
+-- vim.opt.runtimepath:append("~/docs/memo.nvim")
 
 -- UI2 (:h ui2)
 -- https://www.reddit.com/r/neovim/comments/1sa95g4/no_more_press_enter_with_ui2_with_example/
 require("vim._core.ui2").enable({
     enable = true,
     msg = {
-        targets = {
-            [""] = "msg",
-            bufwrite = "msg",
-            completion = "cmd",
-            confirm = "cmd",
-            echo = "msg",
-            echoerr = "pager",
-            echomsg = "msg",
-            empty = "cmd",
-            emsg = "pager",
-            list_cmd = "pager",
-            lua_error = "pager",
-            lua_print = "msg",
-            progress = "pager",
-            quickfix = "msg",
-            rpc_error = "pager",
-            search_cmd = "cmd",
-            search_count = "cmd",
-            shell_cmd = "pager",
-            shell_err = "pager",
-            shell_out = "pager",
-            shell_ret = "msg",
-            typed_cmd = "cmd",
-            undo = "msg",
-            verbose = "pager",
-            wildlist = "cmd",
-            wmsg = "msg",
-        },
+        targets = "cmd",
         cmd = {
             height = 0.5,
         },
@@ -167,12 +141,20 @@ vim.lsp.enable({
     "copilot",
     "lua_ls",
     "ruff",
+    "sourcekit",
     "tinymist",
     "tombi",
     "ts_ls",
     "ty",
     "typos_lsp",
 })
+-- keep conceal active while the cursor is inside LSP floating documentation windows
+local open_floating_preview = vim.lsp.util.open_floating_preview
+vim.lsp.util.open_floating_preview = function(contents, syntax, opts) ---@diagnostic disable-line
+    local bufnr, winid = open_floating_preview(contents, syntax, opts)
+    vim.wo[winid].concealcursor = "in"
+    return bufnr, winid
+end
 -- vim.lsp.inline_completion.enable()
 vim.api.nvim_create_autocmd("LspAttach", {
     callback = function(ev)
@@ -222,8 +204,9 @@ require("fzf-lua").setup({
         height = 0.95,
         preview = {
             border = "single", -- :h winborder
+            horizontal = "right:45%",
         },
-        width = 0.9,
+        width = 0.95,
     },
 })
 
@@ -406,7 +389,7 @@ require("blink.cmp").setup({
 })
 
 -- nvim-treesitter/nvim-treesitter
-if not vim.fn.executable("tree-sitter") == 1 then
+if vim.fn.executable("tree-sitter") ~= 1 then
     vim.notify("[TS]: CLI is not installed.", vim.log.levels.WARN)
 end
 local treesitter_filetypes = {
@@ -553,9 +536,8 @@ require("conform").setup({
 -- })
 
 -- stvhuang/memo.nvim
--- vim.opt.runtimepath:append("~/docs/memo.nvim")
 require("memo").setup({
-    path = "~/Google Drive/My Drive/_me/kiwi",
+    dir = "~/Google Drive/My Drive/_me/kiwi",
 })
 
 -- yorickpeterse/nvim-jump

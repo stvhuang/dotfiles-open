@@ -2,31 +2,39 @@
 
 set -eu
 
-VERSION_CODEX="0.130.0"          # https://github.com/openai/codex
-VERSION_DATABRICKS_CLI="0.299.2" # https://github.com/databricks/cli
+VERSION_CMAKE="4.3.3"            # https://github.com/Kitware/CMake
+VERSION_CODEX="0.139.0"          # https://github.com/openai/codex
+VERSION_DATABRICKS_CLI="1.2.1"   # https://github.com/databricks/cli
 VERSION_FD="10.4.2"              # https://github.com/sharkdp/fd
-VERSION_FZF="0.72.0"             # https://github.com/junegunn/fzf
+VERSION_FISH="4.7.1"             # https://github.com/fish-shell/fish-shell
+VERSION_FZF="0.73.1"             # https://github.com/junegunn/fzf
 VERSION_NEOVIM="0.12.2"          # https://github.com/neovim/neovim
-VERSION_RCLONE="1.74.1"          # https://github.com/rclone/rclone
+VERSION_NODEJS="26.3.0"          # https://nodejs.org/dist/
+VERSION_RCLONE="1.74.3"          # https://github.com/rclone/rclone
 VERSION_RIPGREP="15.1.0"         # https://github.com/burntsushi/ripgrep
-VERSION_SKIM="4.6.1"             # https://github.com/skim-rs/skim
-VERSION_TMUX="3.6a"              # https://github.com/tmux/tmux-builds
-VERSION_TREE_SITTER_CLI="0.26.8" # https://github.com/tree-sitter/tree-sitter
+VERSION_SKIM="4.7.0"             # https://github.com/skim-rs/skim
+VERSION_TMUX="3.6b"              # https://github.com/tmux/tmux-builds
+VERSION_STYLUA="2.5.2"           # https://github.com/JohnnyMorganz/StyLua
+VERSION_TREE_SITTER_CLI="0.26.9" # https://github.com/tree-sitter/tree-sitter
 
 TOOL="${1:-}"
 case "${TOOL}" in
+cmake) ;;
 codex) ;;
 databricks-cli | databricks) TOOL="databricks-cli" ;;
 fd) ;;
+fish) ;;
 fzf) ;;
 neovim | nvim) TOOL="neovim" ;;
+node | nodejs) TOOL="nodejs" ;;
 rclone) ;;
 ripgrep | rg) TOOL="ripgrep" ;;
 skim | sk) TOOL="skim" ;;
+stylua) ;;
 tmux) ;;
 tree-sitter-cli | tree-sitter) TOOL="tree-sitter-cli" ;;
 *)
-  printf "Usage: %s <codex|databricks-cli|fd|fzf|neovim|rclone|ripgrep|skim|tmux|tree-sitter-cli>\n" "$(basename "$0")" >&2
+  printf "Usage: %s <cmake|codex|databricks-cli|fd|fish|fzf|neovim|nodejs|rclone|ripgrep|skim|stylua|tmux|tree-sitter-cli>\n" "$(basename "$0")" >&2
   exit 1
   ;;
 esac
@@ -63,6 +71,22 @@ STRIP_SUBDIR=0
 XATTR_NEEDED=0
 
 case "${TOOL}" in
+cmake)
+  VERSION="${VERSION_CMAKE}"
+  BIN_NAME="cmake"
+  BIN_SUBPATH="bin/cmake"
+  case "${UNAME_S}" in
+  Darwin) SUFFIX="macos-universal" ;;
+  Linux)
+    case "${UNAME_M}" in
+    arm64 | aarch64) SUFFIX="linux-aarch64" ;;
+    x86_64 | x64) SUFFIX="linux-x86_64" ;;
+    esac
+    ;;
+  esac
+  URL="https://github.com/Kitware/CMake/releases/download/v${VERSION}/cmake-${VERSION}-${SUFFIX}.tar.gz"
+  STRIP_SUBDIR=1
+  ;;
 codex)
   VERSION="${VERSION_CODEX}"
   BIN_NAME="codex"
@@ -92,6 +116,7 @@ databricks-cli)
   x86_64 | x64) MACHINE="amd64" ;;
   esac
   URL="https://github.com/databricks/cli/releases/download/v${VERSION}/databricks_cli_${VERSION}_${SYSNAME}_${MACHINE}.zip"
+  FLAT_RENAME=1
   ;;
 fd)
   VERSION="${VERSION_FD}"
@@ -107,6 +132,20 @@ fd)
   esac
   URL="https://github.com/sharkdp/fd/releases/download/v${VERSION}/fd-v${VERSION}-${ARCH}-${PLATFORM}.tar.gz"
   STRIP_SUBDIR=1
+  ;;
+fish)
+  VERSION="${VERSION_FISH}"
+  BIN_NAME="fish"
+  BIN_SUBPATH="Contents/Resources/base/usr/local/bin/fish"
+  case "${UNAME_S}" in
+  Darwin) SYSNAME="macOS" ;;
+  *)
+    printf "fish zip is only for macOS\n" >&2
+    exit 1
+    ;;
+  esac
+  URL="https://github.com/fish-shell/fish-shell/releases/download/${VERSION}/fish-${VERSION}.app.zip"
+  OPT_SUBDIR="fish"
   ;;
 fzf)
   VERSION="${VERSION_FZF}"
@@ -139,6 +178,21 @@ neovim)
   URL="https://github.com/neovim/neovim/releases/download/v${VERSION}/nvim-${SYSNAME}-${MACHINE}.tar.gz"
   OPT_SUBDIR="nvim"
   XATTR_NEEDED=1
+  ;;
+nodejs)
+  VERSION="${VERSION_NODEJS}"
+  BIN_NAME="node"
+  BIN_SUBPATH="bin/node"
+  case "${UNAME_S}" in
+  Darwin) SYSNAME="darwin" ;;
+  Linux) SYSNAME="linux" ;;
+  esac
+  case "${UNAME_M}" in
+  arm64 | aarch64) MACHINE="arm64" ;;
+  x86_64 | x64) MACHINE="x64" ;;
+  esac
+  URL="https://nodejs.org/dist/v${VERSION}/node-v${VERSION}-${SYSNAME}-${MACHINE}.tar.gz"
+  OPT_SUBDIR="node"
   ;;
 rclone)
   VERSION="${VERSION_RCLONE}"
@@ -184,6 +238,21 @@ skim)
   esac
   URL="https://github.com/skim-rs/skim/releases/download/v${VERSION}/skim-${ARCH}-${PLATFORM}.tar.xz"
   STRIP_SUBDIR=1
+  ;;
+stylua)
+  VERSION="${VERSION_STYLUA}"
+  BIN_NAME="stylua"
+  BIN_SUBPATH="stylua"
+  case "${UNAME_S}" in
+  Darwin) SYSNAME="macos" ;;
+  Linux) SYSNAME="linux" ;;
+  esac
+  case "${UNAME_M}" in
+  arm64 | aarch64) MACHINE="aarch64" ;;
+  x86_64 | x64) MACHINE="x86_64" ;;
+  esac
+  URL="https://github.com/JohnnyMorganz/StyLua/releases/download/v${VERSION}/stylua-${SYSNAME}-${MACHINE}.zip"
+  FLAT_RENAME=1
   ;;
 tmux)
   VERSION="${VERSION_TMUX}"
@@ -285,12 +354,28 @@ case "${URL}" in
   trap cleanup EXIT
   printf "Downloading %s\n" "${URL}"
   curl -fLsS -o "${TMP_FILE}" "${URL}"
-  printf "Extracting to %s\n" "${BIN_DIR}"
-  if [ "${STRIP_SUBDIR}" = "1" ]; then
-    unzip -o "${TMP_FILE}" -d "${TMP_DIR}"
+  if [ "${XATTR_NEEDED}" = "1" ]; then
+    xattr -c "${TMP_FILE}"
+  fi
+  if [ "${FLAT_RENAME}" = "1" ]; then
+    printf "Extracting to %s\n" "${BIN_DIR}"
+    unzip -q -o "${TMP_FILE}" -d "${TMP_DIR}"
+    mv "${TMP_DIR}/${BIN_SUBPATH}" "${BIN_DIR}/${BIN_NAME}"
+  elif [ -n "${OPT_SUBDIR}" ]; then
+    OPT_DIR="${HOME}/.local/opt"
+    mkdir -p "${OPT_DIR}"
+    printf "Extracting to %s\n" "${OPT_DIR}/${OPT_SUBDIR}"
+    unzip -q -o "${TMP_FILE}" -d "${TMP_DIR}"
+    rm -rf "${OPT_DIR:?}/${OPT_SUBDIR}"
+    mv "${TMP_DIR}"/* "${OPT_DIR}/${OPT_SUBDIR}"
+    ln -sf "${OPT_DIR}/${OPT_SUBDIR}/${BIN_SUBPATH}" "${BIN_DIR}/${BIN_NAME}"
+  elif [ "${STRIP_SUBDIR}" = "1" ]; then
+    printf "Extracting to %s\n" "${BIN_DIR}"
+    unzip -q -o "${TMP_FILE}" -d "${TMP_DIR}"
     mv "${TMP_DIR}"/*/"${BIN_SUBPATH}" "${BIN_DIR}/${BIN_NAME}"
   else
-    unzip -o "${TMP_FILE}" -d "${BIN_DIR}"
+    printf "Extracting to %s\n" "${BIN_DIR}"
+    unzip -q -o "${TMP_FILE}" -d "${BIN_DIR}"
   fi
   ;;
 esac
@@ -299,3 +384,17 @@ BIN_PATH="${BIN_DIR}/${BIN_NAME}"
 
 chmod +x "${BIN_PATH}"
 printf "Installed %s to %s\n" "${TOOL}" "${BIN_PATH}"
+
+if [ "${TOOL}" = "nodejs" ]; then
+  for extra_bin in npm npx; do
+    ln -sf "${HOME}/.local/opt/node/bin/${extra_bin}" "${BIN_DIR}/${extra_bin}"
+    printf "Also linked %s to %s\n" "${extra_bin}" "${BIN_DIR}/${extra_bin}"
+  done
+fi
+
+if [ "${TOOL}" = "fish" ]; then
+  for extra_bin in fish_indent fish_key_reader; do
+    ln -sf "${HOME}/.local/opt/fish/Contents/Resources/base/usr/local/bin/${extra_bin}" "${BIN_DIR}/${extra_bin}"
+    printf "Also linked %s to %s\n" "${extra_bin}" "${BIN_DIR}/${extra_bin}"
+  done
+fi
