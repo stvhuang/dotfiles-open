@@ -71,6 +71,7 @@ HOME_DFS='
 .bash_profile
 .bashrc
 .clang-format
+.codex
 .env
 .jupyter
 .kaggle

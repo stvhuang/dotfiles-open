@@ -1,6 +1,7 @@
 local blinkcmp_fuzzy_implementation = "prefer_rust_with_warning" -- prefer_rust_with_warning, prefer_rust, rust, lua
 
-vim.api.nvim_set_keymap("", "<space>", "<leader>", { noremap = false, silent = true })
+vim.g.mapleader = " "
+vim.g.maplocalleader = " "
 
 vim.g.loaded_node_provider = 0
 vim.g.loaded_perl_provider = 0
@@ -22,7 +23,6 @@ vim.o.showbreak = "↪ "
 vim.o.showmode = false
 vim.o.signcolumn = "number"
 vim.o.smartcase = true
-vim.o.smartindent = true
 vim.o.smoothscroll = true
 vim.o.splitbelow = true
 vim.o.splitkeep = "topline"
@@ -77,13 +77,13 @@ vim.filetype.add({
 vim.cmd.packadd("nvim.difftool")
 vim.cmd.packadd("nvim.undotree")
 vim.pack.add({
-    -- { src = "https://github.com/stevearc/oil.nvim" },
     { src = "https://github.com/barrettruth/canola-collection" },
     { src = "https://github.com/barrettruth/canola.nvim", version = "canola" },
     { src = "https://github.com/ibhagwan/fzf-lua" },
     { src = "https://github.com/neovim/nvim-lspconfig" },
     { src = "https://github.com/nvim-lualine/lualine.nvim" },
     { src = "https://github.com/nvim-mini/mini.nvim" },
+    { src = "https://github.com/nvim-orgmode/orgmode" },
     { src = "https://github.com/nvim-treesitter/nvim-treesitter", version = "main" },
     { src = "https://github.com/nvim-treesitter/nvim-treesitter-textobjects", version = "main" },
     { src = "https://github.com/nvimtools/hydra.nvim" },
@@ -99,7 +99,6 @@ vim.pack.add({
 -- vim.opt.runtimepath:append("~/docs/memo.nvim")
 
 -- UI2 (:h ui2)
--- https://www.reddit.com/r/neovim/comments/1sa95g4/no_more_press_enter_with_ui2_with_example/
 require("vim._core.ui2").enable({
     enable = true,
     msg = {
@@ -115,9 +114,15 @@ require("vim._core.ui2").enable({
             timeout = 4000,
         },
         pager = {
-            height = 1,
+            height = 0.999, -- 0.999 = full height; values >= 1 are absolute rows (1 == 1 row!)
         },
     },
+})
+
+-- vim.diagnostic
+vim.diagnostic.config({
+    severity_sort = true,
+    virtual_text = true,
 })
 
 -- lsp
@@ -141,6 +146,7 @@ vim.lsp.enable({
     "copilot",
     "lua_ls",
     "ruff",
+    "rust_analyzer",
     "sourcekit",
     "tinymist",
     "tombi",
@@ -148,6 +154,7 @@ vim.lsp.enable({
     "ty",
     "typos_lsp",
 })
+
 -- keep conceal active while the cursor is inside LSP floating documentation windows
 local open_floating_preview = vim.lsp.util.open_floating_preview
 vim.lsp.util.open_floating_preview = function(contents, syntax, opts) ---@diagnostic disable-line
@@ -200,13 +207,15 @@ require("fzf-lua").setup({
         file_icons = false,
     },
     winopts = {
-        border = "single", -- :h winborder
-        height = 0.95,
+        border = "none", -- :h winborder
+        height = 0.9,
         preview = {
-            border = "single", -- :h winborder
+            -- borderless, except a single divider line between the list and the preview
+            -- 8 cells clockwise from topleft; only [8] (left edge) drawn -> the divider
+            border = { "", "", "", "", "", "", "", "│" },
             horizontal = "right:45%",
         },
-        width = 0.95,
+        width = 0.9,
     },
 })
 
@@ -257,11 +266,19 @@ require("mini.diff").setup({
 local mini_hipatterns = require("mini.hipatterns")
 mini_hipatterns.setup({
     highlighters = {
-        fixme = { pattern = "%f[%w]()FIXME()%f[%W]", group = "MiniHipatternsFixme" },
-        todo = { pattern = "%f[%w]()TODO()%f[%W]", group = "MiniHipatternsTodo" },
+        -- fixme = { pattern = "%f[%w]()FIXME()%f[%W]", group = "MiniHipatternsFixme" },
+        -- todo = { pattern = "%f[%w]()TODO()%f[%W]", group = "MiniHipatternsTodo" },
     },
 })
 require("mini.surround").setup({})
+
+-- nvim-orgmode/orgmode
+ORG_HOME = vim.env.HOME .. "/org"
+require("orgmode").setup({
+    org_agenda_files = { ORG_HOME .. "/**/*" },
+    org_default_notes_file = ORG_HOME .. "/main.org",
+    org_todo_keywords = { "TODO(t)", "PEND(p)", "|", "DONE(d)", "CNCL(c)" },
+})
 
 -- nvimtools/hydra.nvim (moved to bottom of the file)
 
@@ -324,9 +341,6 @@ package.loaded["blinkcmp_source_copilot"] = (function()
     return M
 end)()
 require("blink.cmp").setup({
-    appearance = {
-        use_nvim_cmp_as_default = true,
-    },
     completion = {
         accept = {
             auto_brackets = {
@@ -446,7 +460,6 @@ local treesitter_filetypes = {
     "sql",
     "ssh_config",
     "teal",
-    "tmux",
     "todotxt",
     "toml",
     "tsv",
@@ -460,7 +473,7 @@ local treesitter_filetypes = {
 }
 require("nvim-treesitter").install(treesitter_filetypes)
 vim.api.nvim_create_autocmd("FileType", {
-    callback = function(_) vim.treesitter.start() end,
+    callback = function(_) pcall(vim.treesitter.start) end,
     pattern = treesitter_filetypes,
 })
 
@@ -501,7 +514,7 @@ require("conform").setup({
         ledger = { "hledger-fmt" },
         lua = { "stylua" },
         make = { "bake" },
-        markdown = { "custom_prettier" },
+        markdown = { "custom_prettier", "trim_whitespace" },
         ocaml = { "ocamlformat" },
         python = { "ruff_format", "ruff_organize_imports" },
         rust = { "rustfmt" },
@@ -515,26 +528,6 @@ require("conform").setup({
     },
 })
 
--- -- stevearc/oil.nvim
--- local columns = {
---     "type",
---     "permissions",
---     "size",
---     "ctime",
---     "mtime",
---     "atime",
--- }
--- local winbar = table.concat(columns, "    ")
--- require("oil").setup({
---     columns = columns,
---     view_options = {
---         show_hidden = true,
---     },
---     win_options = {
---         winbar = winbar,
---     },
--- })
-
 -- stvhuang/memo.nvim
 require("memo").setup({
     dir = "~/Google Drive/My Drive/_me/kiwi",
@@ -547,7 +540,7 @@ require("jump").setup({
 vim.keymap.set({ "n", "x", "o" }, "gs", require("jump").start, { desc = "jump.start" })
 
 -- colorscheme
-vim.cmd.colorscheme("melange")
+vim.cmd.colorscheme("koda-dark")
 
 -- use ctrl-h/j/k/l to move in command mode
 vim.keymap.set({ "c" }, "<c-h>", "<left>", { desc = "<left>" })
@@ -563,12 +556,15 @@ vim.keymap.set({ "x" }, "<leader>y", '"*y', { desc = "yank text into clipboard" 
 
 -- move by display lines
 vim.keymap.set({ "n" }, "U", vim.cmd.redo, { desc = "redo one change" })
-vim.keymap.set({ "n" }, "j", function() return tonumber(vim.api.nvim_get_vvar("count")) > 0 and "j" or "gj" end, { expr = true, silent = true })
-vim.keymap.set({ "n" }, "k", function() return tonumber(vim.api.nvim_get_vvar("count")) > 0 and "k" or "gk" end, { expr = true, silent = true })
+vim.keymap.set({ "n" }, "j", function() return vim.v.count > 0 and "j" or "gj" end, { expr = true, silent = true })
+vim.keymap.set({ "n" }, "k", function() return vim.v.count > 0 and "k" or "gk" end, { expr = true, silent = true })
 
 -- autocmd
 vim.api.nvim_create_autocmd({ "BufReadPost" }, {
-    callback = function(_)
+    callback = function(ev)
+        if vim.bo[ev.buf].filetype:match("^git") then -- do not restore cursor position for ^git filetypes (e.g. gitcommit, gitrebase, etc.)
+            return
+        end
         local mark = vim.api.nvim_buf_get_mark(0, '"')
         if mark[1] > 1 and mark[1] <= vim.api.nvim_buf_line_count(0) then
             vim.api.nvim_win_set_cursor(0, mark)

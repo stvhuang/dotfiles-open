@@ -2,23 +2,32 @@
 
 set -eu
 
-VERSION_CMAKE="4.3.3"            # https://github.com/Kitware/CMake
-VERSION_CODEX="0.139.0"          # https://github.com/openai/codex
-VERSION_DATABRICKS_CLI="1.2.1"   # https://github.com/databricks/cli
-VERSION_FD="10.4.2"              # https://github.com/sharkdp/fd
-VERSION_FISH="4.7.1"             # https://github.com/fish-shell/fish-shell
-VERSION_FZF="0.73.1"             # https://github.com/junegunn/fzf
-VERSION_NEOVIM="0.12.2"          # https://github.com/neovim/neovim
-VERSION_NODEJS="26.3.0"          # https://nodejs.org/dist/
-VERSION_RCLONE="1.74.3"          # https://github.com/rclone/rclone
-VERSION_RIPGREP="15.1.0"         # https://github.com/burntsushi/ripgrep
-VERSION_SKIM="4.7.0"             # https://github.com/skim-rs/skim
-VERSION_TMUX="3.6b"              # https://github.com/tmux/tmux-builds
-VERSION_STYLUA="2.5.2"           # https://github.com/JohnnyMorganz/StyLua
-VERSION_TREE_SITTER_CLI="0.26.9" # https://github.com/tree-sitter/tree-sitter
+VERSION_AGY="1.1.11"              # https://github.com/google-antigravity/antigravity-cli
+VERSION_CLANG_FORMAT="22.1.8"     # https://github.com/ssciwr/clang-format-wheel
+VERSION_CMAKE="4.4.2"             # https://github.com/Kitware/CMake
+VERSION_CODEX="0.147.0"           # https://github.com/openai/codex
+VERSION_DATABRICKS_CLI="1.11.0"   # https://github.com/databricks/cli
+VERSION_FD="10.4.2"               # https://github.com/sharkdp/fd
+VERSION_FISH="4.8.1"              # https://github.com/fish-shell/fish-shell
+VERSION_FZF="0.74.2"              # https://github.com/junegunn/fzf
+VERSION_NEOVIM="0.12.4"           # https://github.com/neovim/neovim
+VERSION_NODEJS="26.7.0"           # https://nodejs.org/dist/
+VERSION_ORG_TOOLS="0.1.4"         # https://github.com/lino/org-tools
+VERSION_PANDOC="3.10.1"           # https://github.com/jgm/pandoc
+VERSION_RCLONE="1.75.0"           # https://github.com/rclone/rclone
+VERSION_RIPGREP="15.2.0"          # https://github.com/burntsushi/ripgrep
+VERSION_SHFMT="3.13.1"            # https://github.com/mvdan/sh
+VERSION_SKIM="5.6.3"              # https://github.com/skim-rs/skim
+VERSION_TMUX="3.7b"               # https://github.com/tmux/tmux-builds
+VERSION_STYLUA="2.5.2"            # https://github.com/JohnnyMorganz/StyLua
+VERSION_TOMBI="1.2.7"             # https://github.com/tombi-toml/tombi
+VERSION_TREE_SITTER_CLI="0.26.12" # https://github.com/tree-sitter/tree-sitter
+VERSION_TYPST="0.15.1"            # https://github.com/typst/typst
 
 TOOL="${1:-}"
 case "${TOOL}" in
+agy | antigravity) TOOL="agy" ;;
+clang-format | clangformat) TOOL="clang-format" ;;
 cmake) ;;
 codex) ;;
 databricks-cli | databricks) TOOL="databricks-cli" ;;
@@ -27,14 +36,19 @@ fish) ;;
 fzf) ;;
 neovim | nvim) TOOL="neovim" ;;
 node | nodejs) TOOL="nodejs" ;;
+org-tools | org) TOOL="org-tools" ;;
+pandoc) ;;
 rclone) ;;
 ripgrep | rg) TOOL="ripgrep" ;;
+shfmt) ;;
 skim | sk) TOOL="skim" ;;
 stylua) ;;
 tmux) ;;
+tombi) ;;
 tree-sitter-cli | tree-sitter) TOOL="tree-sitter-cli" ;;
+typst) ;;
 *)
-  printf "Usage: %s <cmake|codex|databricks-cli|fd|fish|fzf|neovim|nodejs|rclone|ripgrep|skim|stylua|tmux|tree-sitter-cli>\n" "$(basename "$0")" >&2
+  printf "Usage: %s <agy|clang-format|cmake|codex|databricks-cli|fd|fish|fzf|neovim|nodejs|org-tools|pandoc|rclone|ripgrep|shfmt|skim|stylua|tmux|tombi|tree-sitter-cli|typst>\n" "$(basename "$0")" >&2
   exit 1
   ;;
 esac
@@ -52,9 +66,8 @@ Linux) ;;
 esac
 
 case "${UNAME_M}" in
-arm64) ;;
-# aarch64) ;;
-x86_64 | x64) ;;
+arm64 | aarch64) ARCH_FAMILY="arm64" ;;
+x86_64 | x64) ARCH_FAMILY="x86_64" ;;
 *)
   printf "Unsupported machine: %s\n" "${UNAME_M}" >&2
   exit 1
@@ -62,6 +75,11 @@ x86_64 | x64) ;;
 esac
 
 printf "Detected sysname/machine: %s/%s\n" "${UNAME_S}" "${UNAME_M}"
+
+unsupported_platform() {
+  printf "%s is not available for %s/%s\n" "${TOOL}" "${UNAME_S}" "${UNAME_M}" >&2
+  exit 1
+}
 
 BIN_NAME=""
 BIN_SUBPATH=""
@@ -71,33 +89,72 @@ STRIP_SUBDIR=0
 XATTR_NEEDED=0
 
 case "${TOOL}" in
+agy)
+  VERSION="${VERSION_AGY}"
+  BIN_NAME="agy"
+  BIN_SUBPATH="antigravity"
+  case "${UNAME_S}" in
+  Darwin) SYSNAME="mac" ;;
+  Linux) SYSNAME="linux" ;;
+  esac
+  case "${ARCH_FAMILY}" in
+  arm64) MACHINE="arm64" ;;
+  x86_64) MACHINE="x64" ;;
+  esac
+  URL="https://github.com/google-antigravity/antigravity-cli/releases/download/${VERSION}/agy_cli_${SYSNAME}_${MACHINE}.tar.gz"
+  FLAT_RENAME=1
+  ;;
+clang-format)
+  VERSION="${VERSION_CLANG_FORMAT}"
+  BIN_NAME="clang-format"
+  BIN_SUBPATH="clang_format/data/bin/clang-format"
+  case "${UNAME_S}/${ARCH_FAMILY}" in
+  Darwin/arm64)
+    URL="https://files.pythonhosted.org/packages/2e/55/539cc1036dae16659f50500ca34838cc5b16cd3e98e3faaf164186b98093/clang_format-${VERSION}-py2.py3-none-macosx_11_0_arm64.whl"
+    ;;
+  Darwin/x86_64)
+    URL="https://files.pythonhosted.org/packages/5d/d8/29b9db6098da1a011ca3f7560c3942fa81404dbbb4367c3bd1d5c435da3b/clang_format-${VERSION}-py2.py3-none-macosx_10_9_x86_64.whl"
+    ;;
+  Linux/arm64)
+    URL="https://files.pythonhosted.org/packages/50/25/a9734da014eecc1f54c051ad643a28f2f6643dcc812ac59320e80e2b1a3b/clang_format-${VERSION}-py2.py3-none-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl"
+    ;;
+  Linux/x86_64)
+    URL="https://files.pythonhosted.org/packages/e5/88/b82c066fa807da4ca2518fecf79071361f6324b77375e5e92c059c0697fd/clang_format-${VERSION}-py2.py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
+    ;;
+  *) unsupported_platform ;;
+  esac
+  FLAT_RENAME=1
+  ;;
 cmake)
   VERSION="${VERSION_CMAKE}"
   BIN_NAME="cmake"
-  BIN_SUBPATH="bin/cmake"
   case "${UNAME_S}" in
-  Darwin) SUFFIX="macos-universal" ;;
+  Darwin)
+    SUFFIX="macos-universal"
+    BIN_SUBPATH="CMake.app/Contents/bin/cmake"
+    ;;
   Linux)
-    case "${UNAME_M}" in
-    arm64 | aarch64) SUFFIX="linux-aarch64" ;;
-    x86_64 | x64) SUFFIX="linux-x86_64" ;;
+    BIN_SUBPATH="bin/cmake"
+    case "${ARCH_FAMILY}" in
+    arm64) SUFFIX="linux-aarch64" ;;
+    x86_64) SUFFIX="linux-x86_64" ;;
     esac
     ;;
   esac
   URL="https://github.com/Kitware/CMake/releases/download/v${VERSION}/cmake-${VERSION}-${SUFFIX}.tar.gz"
-  STRIP_SUBDIR=1
+  OPT_SUBDIR="cmake"
   ;;
 codex)
   VERSION="${VERSION_CODEX}"
   BIN_NAME="codex"
   BIN_SUBPATH="codex"
-  case "${UNAME_M}" in
-  arm64 | aarch64) ARCH="aarch64" ;;
-  # x86_64 | x64) ARCH="x86_64" ;;
+  case "${ARCH_FAMILY}" in
+  arm64) ARCH="aarch64" ;;
+  x86_64) ARCH="x86_64" ;;
   esac
   case "${UNAME_S}" in
   Darwin) PLATFORM="apple-darwin" ;;
-  # Linux) PLATFORM="unknown-linux-musl" ;;
+  Linux) PLATFORM="unknown-linux-musl" ;;
   esac
   BIN_SUBPATH="codex-${ARCH}-${PLATFORM}"
   URL="https://github.com/openai/codex/releases/download/rust-v${VERSION}/codex-${ARCH}-${PLATFORM}.tar.gz"
@@ -111,9 +168,9 @@ databricks-cli)
   Darwin) SYSNAME="darwin" ;;
   Linux) SYSNAME="linux" ;;
   esac
-  case "${UNAME_M}" in
-  arm64 | aarch64) MACHINE="arm64" ;;
-  x86_64 | x64) MACHINE="amd64" ;;
+  case "${ARCH_FAMILY}" in
+  arm64) MACHINE="arm64" ;;
+  x86_64) MACHINE="amd64" ;;
   esac
   URL="https://github.com/databricks/cli/releases/download/v${VERSION}/databricks_cli_${VERSION}_${SYSNAME}_${MACHINE}.zip"
   FLAT_RENAME=1
@@ -122,13 +179,21 @@ fd)
   VERSION="${VERSION_FD}"
   BIN_NAME="fd"
   BIN_SUBPATH="fd"
-  case "${UNAME_M}" in
-  arm64 | aarch64) ARCH="aarch64" ;;
-  # x86_64 | x64) ARCH="x86_64" ;;
-  esac
-  case "${UNAME_S}" in
-  Darwin) PLATFORM="apple-darwin" ;;
-  # Linux) PLATFORM="unknown-linux-musl" ;;
+  case "${UNAME_S}/${ARCH_FAMILY}" in
+  Darwin/arm64)
+    ARCH="aarch64"
+    PLATFORM="apple-darwin"
+    ;;
+  Darwin/x86_64) unsupported_platform ;;
+  Linux/arm64)
+    ARCH="aarch64"
+    PLATFORM="unknown-linux-musl"
+    ;;
+  Linux/x86_64)
+    ARCH="x86_64"
+    PLATFORM="unknown-linux-musl"
+    ;;
+  *) unsupported_platform ;;
   esac
   URL="https://github.com/sharkdp/fd/releases/download/v${VERSION}/fd-v${VERSION}-${ARCH}-${PLATFORM}.tar.gz"
   STRIP_SUBDIR=1
@@ -136,16 +201,24 @@ fd)
 fish)
   VERSION="${VERSION_FISH}"
   BIN_NAME="fish"
-  BIN_SUBPATH="Contents/Resources/base/usr/local/bin/fish"
-  case "${UNAME_S}" in
-  Darwin) SYSNAME="macOS" ;;
-  *)
-    printf "fish zip is only for macOS\n" >&2
-    exit 1
+  case "${UNAME_S}/${ARCH_FAMILY}" in
+  Darwin/arm64 | Darwin/x86_64)
+    BIN_SUBPATH="Contents/Resources/base/usr/local/bin/fish"
+    URL="https://github.com/fish-shell/fish-shell/releases/download/${VERSION}/fish-${VERSION}.app.zip"
+    OPT_SUBDIR="fish"
     ;;
+  Linux/arm64)
+    BIN_SUBPATH="fish"
+    URL="https://github.com/fish-shell/fish-shell/releases/download/${VERSION}/fish-${VERSION}-linux-aarch64.tar.xz"
+    FLAT_RENAME=1
+    ;;
+  Linux/x86_64)
+    BIN_SUBPATH="fish"
+    URL="https://github.com/fish-shell/fish-shell/releases/download/${VERSION}/fish-${VERSION}-linux-x86_64.tar.xz"
+    FLAT_RENAME=1
+    ;;
+  *) unsupported_platform ;;
   esac
-  URL="https://github.com/fish-shell/fish-shell/releases/download/${VERSION}/fish-${VERSION}.app.zip"
-  OPT_SUBDIR="fish"
   ;;
 fzf)
   VERSION="${VERSION_FZF}"
@@ -155,10 +228,9 @@ fzf)
   Darwin) SYSNAME="darwin" ;;
   Linux) SYSNAME="linux" ;;
   esac
-  case "${UNAME_M}" in
+  case "${ARCH_FAMILY}" in
   arm64) MACHINE="arm64" ;;
-  # aarch64) MACHINE="arm64" ;;
-  x86_64 | x64) MACHINE="amd64" ;;
+  x86_64) MACHINE="amd64" ;;
   esac
   URL="https://github.com/junegunn/fzf/releases/download/v${VERSION}/fzf-${VERSION}-${SYSNAME}_${MACHINE}.tar.gz"
   ;;
@@ -166,18 +238,29 @@ neovim)
   VERSION="${VERSION_NEOVIM}"
   BIN_NAME="nvim"
   BIN_SUBPATH="bin/nvim"
-  case "${UNAME_S}" in
-  Darwin) SYSNAME="macos" ;;
-  # Linux) SYSNAME="linux" ;;
-  esac
-  case "${UNAME_M}" in
-  arm64) MACHINE="arm64" ;;
-  # aarch64) MACHINE="arm64" ;;
-  # x86_64 | x64) MACHINE="x86_64" ;;
+  case "${UNAME_S}/${ARCH_FAMILY}" in
+  Darwin/arm64)
+    SYSNAME="macos"
+    MACHINE="arm64"
+    XATTR_NEEDED=1
+    ;;
+  Darwin/x86_64)
+    SYSNAME="macos"
+    MACHINE="x86_64"
+    XATTR_NEEDED=1
+    ;;
+  Linux/arm64)
+    SYSNAME="linux"
+    MACHINE="arm64"
+    ;;
+  Linux/x86_64)
+    SYSNAME="linux"
+    MACHINE="x86_64"
+    ;;
+  *) unsupported_platform ;;
   esac
   URL="https://github.com/neovim/neovim/releases/download/v${VERSION}/nvim-${SYSNAME}-${MACHINE}.tar.gz"
   OPT_SUBDIR="nvim"
-  XATTR_NEEDED=1
   ;;
 nodejs)
   VERSION="${VERSION_NODEJS}"
@@ -187,12 +270,48 @@ nodejs)
   Darwin) SYSNAME="darwin" ;;
   Linux) SYSNAME="linux" ;;
   esac
-  case "${UNAME_M}" in
-  arm64 | aarch64) MACHINE="arm64" ;;
-  x86_64 | x64) MACHINE="x64" ;;
+  case "${ARCH_FAMILY}" in
+  arm64) MACHINE="arm64" ;;
+  x86_64) MACHINE="x64" ;;
   esac
   URL="https://nodejs.org/dist/v${VERSION}/node-v${VERSION}-${SYSNAME}-${MACHINE}.tar.gz"
   OPT_SUBDIR="node"
+  ;;
+org-tools)
+  VERSION="${VERSION_ORG_TOOLS}"
+  BIN_NAME="org"
+  BIN_SUBPATH="org"
+  case "${ARCH_FAMILY}" in
+  arm64) ARCH="aarch64" ;;
+  x86_64) ARCH="x86_64" ;;
+  esac
+  case "${UNAME_S}" in
+  Darwin) PLATFORM="apple-darwin" ;;
+  Linux) PLATFORM="unknown-linux-gnu" ;;
+  esac
+  URL="https://github.com/lino/org-tools/releases/download/v${VERSION}/org-${ARCH}-${PLATFORM}.tar.gz"
+  FLAT_RENAME=1
+  ;;
+pandoc)
+  VERSION="${VERSION_PANDOC}"
+  BIN_NAME="pandoc"
+  BIN_SUBPATH="bin/pandoc"
+  case "${UNAME_S}/${ARCH_FAMILY}" in
+  Darwin/arm64)
+    URL="https://github.com/jgm/pandoc/releases/download/${VERSION}/pandoc-${VERSION}-arm64-macOS.zip"
+    ;;
+  Darwin/x86_64)
+    URL="https://github.com/jgm/pandoc/releases/download/${VERSION}/pandoc-${VERSION}-x86_64-macOS.zip"
+    ;;
+  Linux/arm64)
+    URL="https://github.com/jgm/pandoc/releases/download/${VERSION}/pandoc-${VERSION}-linux-arm64.tar.gz"
+    ;;
+  Linux/x86_64)
+    URL="https://github.com/jgm/pandoc/releases/download/${VERSION}/pandoc-${VERSION}-linux-amd64.tar.gz"
+    ;;
+  *) unsupported_platform ;;
+  esac
+  STRIP_SUBDIR=1
   ;;
 rclone)
   VERSION="${VERSION_RCLONE}"
@@ -202,9 +321,9 @@ rclone)
   Darwin) SYSNAME="osx" ;;
   Linux) SYSNAME="linux" ;;
   esac
-  case "${UNAME_M}" in
-  arm64 | aarch64) MACHINE="arm64" ;;
-  x86_64 | x64) MACHINE="amd64" ;;
+  case "${ARCH_FAMILY}" in
+  arm64) MACHINE="arm64" ;;
+  x86_64) MACHINE="amd64" ;;
   esac
   URL="https://github.com/rclone/rclone/releases/download/v${VERSION}/rclone-v${VERSION}-${SYSNAME}-${MACHINE}.zip"
   STRIP_SUBDIR=1
@@ -213,28 +332,41 @@ ripgrep)
   VERSION="${VERSION_RIPGREP}"
   BIN_NAME="rg"
   BIN_SUBPATH="rg"
-  case "${UNAME_M}" in
-  arm64 | aarch64) ARCH="aarch64" ;;
-  # x86_64 | x64) ARCH="x86_64" ;;
+  case "${ARCH_FAMILY}" in
+  arm64) ARCH="aarch64" ;;
+  x86_64) ARCH="x86_64" ;;
   esac
   case "${UNAME_S}" in
   Darwin) PLATFORM="apple-darwin" ;;
-  # Linux) PLATFORM="unknown-linux-musl" ;;
+  Linux) PLATFORM="unknown-linux-musl" ;;
   esac
   URL="https://github.com/BurntSushi/ripgrep/releases/download/${VERSION}/ripgrep-${VERSION}-${ARCH}-${PLATFORM}.tar.gz"
   STRIP_SUBDIR=1
+  ;;
+shfmt)
+  VERSION="${VERSION_SHFMT}"
+  BIN_NAME="shfmt"
+  case "${UNAME_S}" in
+  Darwin) SYSNAME="darwin" ;;
+  Linux) SYSNAME="linux" ;;
+  esac
+  case "${ARCH_FAMILY}" in
+  arm64) MACHINE="arm64" ;;
+  x86_64) MACHINE="amd64" ;;
+  esac
+  URL="https://github.com/mvdan/sh/releases/download/v${VERSION}/shfmt_v${VERSION}_${SYSNAME}_${MACHINE}"
   ;;
 skim)
   VERSION="${VERSION_SKIM}"
   BIN_NAME="sk"
   BIN_SUBPATH="sk"
-  case "${UNAME_M}" in
-  arm64 | aarch64) ARCH="aarch64" ;;
-  # x86_64 | x64) ARCH="x86_64" ;;
+  case "${ARCH_FAMILY}" in
+  arm64) ARCH="aarch64" ;;
+  x86_64) ARCH="x86_64" ;;
   esac
   case "${UNAME_S}" in
   Darwin) PLATFORM="apple-darwin" ;;
-  # Linux) PLATFORM="unknown-linux-gnu" ;;
+  Linux) PLATFORM="unknown-linux-musl" ;;
   esac
   URL="https://github.com/skim-rs/skim/releases/download/v${VERSION}/skim-${ARCH}-${PLATFORM}.tar.xz"
   STRIP_SUBDIR=1
@@ -247,11 +379,14 @@ stylua)
   Darwin) SYSNAME="macos" ;;
   Linux) SYSNAME="linux" ;;
   esac
-  case "${UNAME_M}" in
-  arm64 | aarch64) MACHINE="aarch64" ;;
-  x86_64 | x64) MACHINE="x86_64" ;;
+  case "${ARCH_FAMILY}" in
+  arm64) MACHINE="aarch64" ;;
+  x86_64) MACHINE="x86_64" ;;
   esac
-  URL="https://github.com/JohnnyMorganz/StyLua/releases/download/v${VERSION}/stylua-${SYSNAME}-${MACHINE}.zip"
+  case "${UNAME_S}" in
+  Darwin) URL="https://github.com/JohnnyMorganz/StyLua/releases/download/v${VERSION}/stylua-${SYSNAME}-${MACHINE}.zip" ;;
+  Linux) URL="https://github.com/JohnnyMorganz/StyLua/releases/download/v${VERSION}/stylua-${SYSNAME}-${MACHINE}-musl.zip" ;;
+  esac
   FLAT_RENAME=1
   ;;
 tmux)
@@ -260,16 +395,28 @@ tmux)
   BIN_SUBPATH="tmux"
   case "${UNAME_S}" in
   Darwin) SYSNAME="macos" ;;
-  *)
-    printf "tmux-builds only provides macOS binaries\n" >&2
-    exit 1
-    ;;
+  Linux) SYSNAME="linux" ;;
   esac
-  case "${UNAME_M}" in
-  arm64 | aarch64) MACHINE="arm64" ;;
-  x86_64 | x64) MACHINE="x86_64" ;;
+  case "${ARCH_FAMILY}" in
+  arm64) MACHINE="arm64" ;;
+  x86_64) MACHINE="x86_64" ;;
   esac
   URL="https://github.com/tmux/tmux-builds/releases/download/v${VERSION}/tmux-${VERSION}-${SYSNAME}-${MACHINE}.tar.gz"
+  ;;
+tombi)
+  VERSION="${VERSION_TOMBI}"
+  BIN_NAME="tombi"
+  BIN_SUBPATH="tombi"
+  case "${ARCH_FAMILY}" in
+  arm64) ARCH="aarch64" ;;
+  x86_64) ARCH="x86_64" ;;
+  esac
+  case "${UNAME_S}" in
+  Darwin) PLATFORM="apple-darwin" ;;
+  Linux) PLATFORM="unknown-linux-musl" ;;
+  esac
+  URL="https://github.com/tombi-toml/tombi/releases/download/v${VERSION}/tombi-cli-${VERSION}-${ARCH}-${PLATFORM}.tar.gz"
+  STRIP_SUBDIR=1
   ;;
 tree-sitter-cli)
   VERSION="${VERSION_TREE_SITTER_CLI}"
@@ -279,12 +426,26 @@ tree-sitter-cli)
   Darwin) SYSNAME="macos" ;;
   Linux) SYSNAME="linux" ;;
   esac
-  case "${UNAME_M}" in
+  case "${ARCH_FAMILY}" in
   arm64) MACHINE="arm64" ;;
-  # aarch64) MACHINE="arm64" ;;
-  x86_64 | x64) MACHINE="x64" ;;
+  x86_64) MACHINE="x64" ;;
   esac
   URL="https://github.com/tree-sitter/tree-sitter/releases/download/v${VERSION}/tree-sitter-cli-${SYSNAME}-${MACHINE}.zip"
+  ;;
+typst)
+  VERSION="${VERSION_TYPST}"
+  BIN_NAME="typst"
+  BIN_SUBPATH="typst"
+  case "${ARCH_FAMILY}" in
+  arm64) ARCH="aarch64" ;;
+  x86_64) ARCH="x86_64" ;;
+  esac
+  case "${UNAME_S}" in
+  Darwin) PLATFORM="apple-darwin" ;;
+  Linux) PLATFORM="unknown-linux-musl" ;;
+  esac
+  URL="https://github.com/typst/typst/releases/download/v${VERSION}/typst-${ARCH}-${PLATFORM}.tar.xz"
+  STRIP_SUBDIR=1
   ;;
 esac
 
@@ -337,14 +498,17 @@ case "${URL}" in
   printf "Downloading %s\n" "${URL}"
   curl -fLsS -o "${TMP_FILE}" "${URL}"
   printf "Extracting to %s\n" "${BIN_DIR}"
-  if [ "${STRIP_SUBDIR}" = "1" ]; then
+  if [ "${FLAT_RENAME}" = "1" ]; then
+    tar -xJf "${TMP_FILE}" -C "${TMP_DIR}"
+    mv "${TMP_DIR}/${BIN_SUBPATH}" "${BIN_DIR}/${BIN_NAME}"
+  elif [ "${STRIP_SUBDIR}" = "1" ]; then
     tar -xJf "${TMP_FILE}" -C "${TMP_DIR}"
     mv "${TMP_DIR}"/*/"${BIN_SUBPATH}" "${BIN_DIR}/${BIN_NAME}"
   else
     tar -xJf "${TMP_FILE}" -C "${BIN_DIR}"
   fi
   ;;
-*.zip)
+*.zip | *.whl)
   TMP_FILE="$(mktemp -t "${TOOL}.XXXXXX").zip"
   TMP_DIR="$(mktemp -d -t "${TOOL}.XXXXXX")"
   cleanup() {
@@ -378,6 +542,13 @@ case "${URL}" in
     unzip -q -o "${TMP_FILE}" -d "${BIN_DIR}"
   fi
   ;;
+*)
+  printf "Downloading %s to %s\n" "${URL}" "${BIN_DIR}"
+  curl -fLsS -o "${BIN_DIR}/${BIN_NAME}" "${URL}"
+  if [ "${XATTR_NEEDED}" = "1" ]; then
+    xattr -c "${BIN_DIR}/${BIN_NAME}"
+  fi
+  ;;
 esac
 
 BIN_PATH="${BIN_DIR}/${BIN_NAME}"
@@ -392,7 +563,7 @@ if [ "${TOOL}" = "nodejs" ]; then
   done
 fi
 
-if [ "${TOOL}" = "fish" ]; then
+if [ "${TOOL}" = "fish" ] && [ "${UNAME_S}" = "Darwin" ]; then
   for extra_bin in fish_indent fish_key_reader; do
     ln -sf "${HOME}/.local/opt/fish/Contents/Resources/base/usr/local/bin/${extra_bin}" "${BIN_DIR}/${extra_bin}"
     printf "Also linked %s to %s\n" "${extra_bin}" "${BIN_DIR}/${extra_bin}"
